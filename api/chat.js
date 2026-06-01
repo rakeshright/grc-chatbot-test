@@ -6,23 +6,6 @@ async function fetchConfluencePages() {
 
   const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
 
-  const response = await fetch(
-    `https://${confluenceDomain}/wiki/rest/api/content/${pageId}/child/attachment?expand=version`,
-    {
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Accept': 'application/json'
-      }
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Confluence API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  // Get the page content itself
   const pageResponse = await fetch(
     `https://${confluenceDomain}/wiki/rest/api/content/${pageId}?expand=body.storage,children.page.body.storage`,
     {
@@ -33,14 +16,15 @@ async function fetchConfluencePages() {
     }
   );
 
+  if (!pageResponse.ok) {
+    throw new Error(`Confluence API error: ${pageResponse.status}`);
+  }
+
   const pageData = await pageResponse.json();
-  
-  // Extract text from page body (strip HTML tags)
   const stripHtml = (html) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  
+
   let policyText = `Page: ${pageData.title}\n${stripHtml(pageData.body.storage.value)}\n\n`;
 
-  // Also get child pages if any
   if (pageData.children && pageData.children.page && pageData.children.page.results) {
     for (const child of pageData.children.page.results) {
       if (child.body && child.body.storage) {
@@ -72,9 +56,11 @@ module.exports = async function handler(req, res) {
   }
 
   const systemPrompt = `You are a GRC (Governance, Risk & Compliance) policy assistant for Rakesh Test Inc.
-You have access to the following internal policy documents fetched live from Confluence.
-Answer questions based strictly on these documents. Be concise and cite specific sections when relevant.
-If something is not covered, say so clearly.
+You have access to internal policy documents fetched live from Confluence.
+Answer questions based strictly on these documents.
+Respond in plain conversational English. Do not use markdown formatting like ** or ###.
+Use plain text only, with numbered lists where helpful.
+If something is not covered in the policies, say so clearly.
 
 POLICY DOCUMENTS:
 ${policyText}`;
@@ -105,12 +91,4 @@ ${policyText}`;
       return res.status(response.status).json({ error: error.error?.message || 'API error' });
     }
 
-    const data = await response.json();
-    const reply = data.content?.[0]?.text || 'No response received.';
-    return res.status(200).json({ reply });
-
-  } catch (error) {
-    console.error('Error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to get response' });
-  }
-}
+    const
