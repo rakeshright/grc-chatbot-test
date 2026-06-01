@@ -1,23 +1,83 @@
+async function fetchConfluencePages() {
+  const confluenceDomain = 'rakeshright.atlassian.net';
+  const email = 'rakeshright@gmail.com';
+  const apiToken = process.env.CONFLUENCE_API_TOKEN;
+  const pageId = '491521';
+
+  const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
+
+  const response = await fetch(
+    `https://${confluenceDomain}/wiki/rest/api/content/${pageId}/child/attachment?expand=version`,
+    {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Accept': 'application/json'
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Confluence API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  // Get the page content itself
+  const pageResponse = await fetch(
+    `https://${confluenceDomain}/wiki/rest/api/content/${pageId}?expand=body.storage,children.page.body.storage`,
+    {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Accept': 'application/json'
+      }
+    }
+  );
+
+  const pageData = await pageResponse.json();
+  
+  // Extract text from page body (strip HTML tags)
+  const stripHtml = (html) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  let policyText = `Page: ${pageData.title}\n${stripHtml(pageData.body.storage.value)}\n\n`;
+
+  // Also get child pages if any
+  if (pageData.children && pageData.children.page && pageData.children.page.results) {
+    for (const child of pageData.children.page.results) {
+      if (child.body && child.body.storage) {
+        policyText += `Page: ${child.title}\n${stripHtml(child.body.storage.value)}\n\n`;
+      }
+    }
+  }
+
+  return policyText;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { question, policyText, history } = req.body;
+  const { question, history } = req.body;
 
   if (!question) {
     return res.status(400).json({ error: 'Question is required' });
   }
 
-  const systemPrompt = policyText
-    ? `You are a GRC (Governance, Risk & Compliance) policy assistant. 
-Answer questions based on the following internal policy document provided by the user.
-Be concise, accurate, and cite specific sections when relevant.
-If something is not covered in the policy, say so clearly rather than guessing.
+  let policyText = '';
+  try {
+    policyText = await fetchConfluencePages();
+  } catch (err) {
+    console.error('Confluence fetch error:', err);
+    return res.status(500).json({ error: 'Failed to fetch policies from Confluence: ' + err.message });
+  }
 
-POLICY DOCUMENT:
-${policyText}`
-    : `You are a GRC policy assistant. No policy document provided. Answer general GRC questions and encourage the user to paste a policy document.`;
+  const systemPrompt = `You are a GRC (Governance, Risk & Compliance) policy assistant for Rakesh Test Inc.
+You have access to the following internal policy documents fetched live from Confluence.
+Answer questions based strictly on these documents. Be concise and cite specific sections when relevant.
+If something is not covered, say so clearly.
+
+POLICY DOCUMENTS:
+${policyText}`;
 
   const messages = [
     ...(history || []),
@@ -33,7 +93,7 @@ ${policyText}`
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system: systemPrompt,
         messages: messages
