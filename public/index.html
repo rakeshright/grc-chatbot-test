@@ -66,14 +66,9 @@
   <div class="icon">🛡️</div>
   <div>
     <h1>GRC Policy Assistant</h1>
-    <p>Paste your policy document and ask questions</p>
+    <p>Ask questions about Rakesh Test Inc policies</p>
   </div>
 </header>
-<div class="container">
-  <div class="policy-section">
-    <div class="section-header">📄 Policy Document Context</div>
-    <textarea id="policy-input" placeholder="Paste your policy document here — e.g. Information Security Policy, IT Risk Management Policy, Acceptable Use Policy..."></textarea>
-  </div>
   <div class="chat-section">
     <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
       <span>💬 Ask a Question</span>
@@ -82,7 +77,6 @@
     <div id="chat-messages">
       <div class="empty-state" id="empty-state">
         <div class="emoji">🤔</div>
-        <p>Paste a policy above and ask anything about it</p>
       </div>
     </div>
     <div class="quick-questions">
@@ -128,7 +122,6 @@
     const input = document.getElementById('user-input');
     const question = input.value.trim();
     if (!question) return;
-    const policy = document.getElementById('policy-input').value.trim();
     input.value = '';
     addMessage('user', question);
     const loadingBubble = addMessage('assistant', '', true);
