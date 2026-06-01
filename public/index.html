@@ -123,7 +123,8 @@
   .replace(/^## (.+)$/gm, '<strong>$1</strong>')
   .replace(/^# (.+)$/gm, '<strong>$1</strong>')
   .replace(/^- (.+)$/gm, '• $1')
-  .replace(/\n/g, '<br>'); }
+  .replace(/(\d+\.)/g, '<br>$1')
+.replace(/\n/g, '<br>'); }
     div.appendChild(avatar);
     div.appendChild(bubble);
     msgs.appendChild(div);
