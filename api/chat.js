@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -17,9 +17,7 @@ If something is not covered in the policy, say so clearly rather than guessing.
 
 POLICY DOCUMENT:
 ${policyText}`
-    : `You are a GRC (Governance, Risk & Compliance) policy assistant.
-No policy document has been provided. Answer general GRC and information security questions from your knowledge.
-Encourage the user to paste a policy document for more specific answers.`;
+    : `You are a GRC policy assistant. No policy document provided. Answer general GRC questions and encourage the user to paste a policy document.`;
 
   const messages = [
     ...(history || []),
@@ -49,11 +47,10 @@ Encourage the user to paste a policy document for more specific answers.`;
 
     const data = await response.json();
     const reply = data.content?.[0]?.text || 'No response received.';
-
     return res.status(200).json({ reply });
 
   } catch (error) {
-    console.error('Error calling Anthropic API:', error);
-    return res.status(500).json({ error: 'Failed to get response from Claude' });
+    console.error('Error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to get response' });
   }
 }
