@@ -117,7 +117,13 @@
     const bubble = document.createElement('div');
     bubble.className = `bubble${isLoading ? ' loading' : ''}`;
     if (isLoading) { bubble.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>'; }
-    else { bubble.textContent = text; }
+    else { bubble.innerHTML = text
+  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  .replace(/^### (.+)$/gm, '<strong>$1</strong>')
+  .replace(/^## (.+)$/gm, '<strong>$1</strong>')
+  .replace(/^# (.+)$/gm, '<strong>$1</strong>')
+  .replace(/^- (.+)$/gm, '• $1')
+  .replace(/\n/g, '<br>'); }
     div.appendChild(avatar);
     div.appendChild(bubble);
     msgs.appendChild(div);
