@@ -3,28 +3,15 @@ async function fetchConfluencePages() {
   const email = 'rakeshright@gmail.com';
   const apiToken = process.env.CONFLUENCE_API_TOKEN;
   const pageId = '491521';
-
   const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
-
   const pageResponse = await fetch(
     `https://${confluenceDomain}/wiki/rest/api/content/${pageId}?expand=body.storage,children.page.body.storage`,
-    {
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Accept': 'application/json'
-      }
-    }
+    { headers: { 'Authorization': `Basic ${auth}`, 'Accept': 'application/json' } }
   );
-
-  if (!pageResponse.ok) {
-    throw new Error(`Confluence API error: ${pageResponse.status}`);
-  }
-
+  if (!pageResponse.ok) throw new Error(`Confluence API error: ${pageResponse.status}`);
   const pageData = await pageResponse.json();
   const stripHtml = (html) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-
   let policyText = `Page: ${pageData.title}\n${stripHtml(pageData.body.storage.value)}\n\n`;
-
   if (pageData.children && pageData.children.page && pageData.children.page.results) {
     for (const child of pageData.children.page.results) {
       if (child.body && child.body.storage) {
@@ -32,20 +19,13 @@ async function fetchConfluencePages() {
       }
     }
   }
-
   return policyText;
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { question, history } = req.body;
-
-  if (!question) {
-    return res.status(400).json({ error: 'Question is required' });
-  }
+  if (!question) return res.status(400).json({ error: 'Question is required' });
 
   let policyText = '';
   try {
@@ -85,10 +65,15 @@ ${policyText}`;
         messages: messages
       })
     });
-
     if (!response.ok) {
       const error = await response.json();
       return res.status(response.status).json({ error: error.error?.message || 'API error' });
     }
-
-    const
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || 'No response received.';
+    return res.status(200).json({ reply });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to get response' });
+  }
+}
